@@ -1,0 +1,12 @@
+{
+  "name": "nodebb-plugin-group-enhancer",
+  "version": "1.0.0",
+  "main": "library.js",
+  "description": "Enhances group settings in NodeBB with logo upload, URL, and address fields",
+  "author": "Your Name",
+  "license": "MIT",
+  "keywords": ["nodebb", "nodebb-plugin", "groups", "enhancer"],
+  "nbbpm": {
+    "compatibility": "^4.4.3"
+  }
+}

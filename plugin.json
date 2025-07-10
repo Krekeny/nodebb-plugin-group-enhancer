@@ -1,0 +1,16 @@
+{
+  "id": "nodebb-plugin-group-extras",
+  "name": "Group Extras",
+  "library": "library.js",
+  "scripts": [
+    "static/lib/client.js"  
+  ],
+  "hooks": [
+    { "hook": "static:app.load",   "method": "init" },
+
+    { "hook": "filter:group.create", "method": "whitelist" },
+    { "hook": "filter:group.update", "method": "whitelist" },
+    { "hook": "filter:groups.get",   "method": "attachExtras" }
+  ],
+  "nbbpm": { "compatibility": "^3.x" }
+}
