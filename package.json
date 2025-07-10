@@ -8,5 +8,9 @@
   "keywords": ["nodebb", "nodebb-plugin", "groups", "enhancer"],
   "nbbpm": {
     "compatibility": "^4.4.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Krekeny/nodebb-plugin-group-enhancer.git"
   }
 }
