@@ -1,37 +1,106 @@
 'use strict';
 
-const db     = require.main.require('./src/database');
+const db = require.main.require('./src/database');
 const Groups = require.main.require('./src/groups');
 
-const FIELDS = ['extraDesc', 'logo', 'url', 'address'];  // db keys
+const Plugin = {};
 
-const plugin = {};
-
-/* 1. add routes for static assets (JS/CSS) */
-plugin.init = async ({ router, middleware }) => {
-    router.get('/admin/plugins/group-extras', middleware.admin.buildHeader,
-        (req, res) => res.render('admin/plugins/group-extras'));
+// ❶ Whitelist the new keys so /api/v3/groups PUT will accept them
+Plugin.extendWhitelist = async ({ fields }) => {
+  ['extraDesc', 'logo', 'url', 'address'].forEach(f => {
+    if (!fields.includes(f)) fields.push(f);
+  });
+  return { fields };
 };
 
-/* 2. during group-create and group-update keep only allowed props */
-plugin.whitelist = async (hookData) => {
-    const incoming = hookData.data || hookData.values;
-    FIELDS.forEach(f => {
-        if (incoming?.[f] !== undefined) {
-            hookData.data  && (hookData.data[f]  = incoming[f]);
-            hookData.values && (hookData.values[f] = incoming[f]);
+// ❷ Merge extras back whenever a group is fetched
+Plugin.addExtras = async (data) => {
+	console.log('[Group-Enhancer] addExtras called for', data?.group?.slug);
+
+  if (!data?.group?.slug) return data;
+
+  const slug = data.group.slug;
+  let extras = {};
+  try {
+    extras = await db.getObject(`plugin:group-enhancer:${slug}`) || {};
+  } catch (err) {
+    console.error('[Group-Enhancer] Error fetching extra group data:', err);
+  }
+
+  data.group = { ...data.group, ...extras };
+  return data;
+};
+
+Plugin.init = function (params, callback) {
+  const { router, middleware } = params;
+
+  const adminGuard = middleware.checkPrivileges
+    ? middleware.checkPrivileges('admin:groups')
+    : (req, res, next) => next();
+
+  router.put(
+    '/api/v3/plugins/group-enhancer/groups/:slug',
+    middleware.applyCSRF,
+    adminGuard,
+    async (req, res) => {
+      console.log('[Group-Enhancer] PUT request received for slug:', req.params.slug);
+
+      try {
+        const slug = req.params.slug;
+        const allGroups = await Groups.getGroupsFromSet('groups:createtime', 0, -1);
+        const group = allGroups.find(g => g.slug === slug);
+
+        if (!group) {
+          return res.status(404).json({ error: 'group-not-found' });
         }
-    });
-    return hookData;
+
+        const {
+          extraDesc = '',
+          logo = '',
+          url = '',
+          address = '',
+        } = req.body || {};
+
+        await db.setObject(`plugin:group-enhancer:${slug}`, {
+          extraDesc,
+          logo,
+          url,
+          address,
+        });
+
+        return res.json({ success: true });
+      } catch (err) {
+        console.error('[Group-Enhancer] Route error:', err);
+        return res.status(500).json({ error: err.message || 'Unknown error' });
+      }
+    }
+  );
+
+  console.log('[Group-Enhancer] Route PUT registered');
+
+  if (callback) callback();
 };
 
-/* 3. when groups are fetched, append extras so the client can render them */
-plugin.attachExtras = async (groups) => {
-    await Promise.all(groups.map(async (g) => {
-        const extras = await db.getObjectFields(`group:${g.name}`, FIELDS);
-        Object.assign(g, extras);
-    }));
-    return groups;
+module.exports = {
+  ...Plugin,
+
+  addExtrasToOne: async (data) => {
+    console.log('[Group-Enhancer] addExtrasToOne triggered');
+    return Plugin.addExtras(data);
+  },
+
+  addExtrasToMany: async (data) => {
+    if (!Array.isArray(data.groups)) return data;
+    const groupsWithExtras = await Promise.all(
+      data.groups.map(async (group) => {
+        const extras = await db.getObject(`plugin:group-enhancer:${group.slug}`) || {};
+        return { ...group, ...extras };
+      })
+    );
+    data.groups = groupsWithExtras;
+    return data;
+  },
+
+  onGroupUpdate: async (data) => data,
 };
 
-module.exports = plugin;

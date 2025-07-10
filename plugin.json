@@ -1,16 +1,14 @@
 {
-  "id": "nodebb-plugin-group-extras",
-  "name": "Group Extras",
-  "library": "library.js",
-  "scripts": [
-    "static/lib/client.js"  
-  ],
+  "id": "nodebb-plugin-group-enhancer",
+  "library": "./library.js",
+  "staticDirs": { "static": "./static" },
+  "acpScripts": [ "static/lib/admin.js" ],
   "hooks": [
-    { "hook": "static:app.load",   "method": "init" },
-
-    { "hook": "filter:group.create", "method": "whitelist" },
-    { "hook": "filter:group.update", "method": "whitelist" },
-    { "hook": "filter:groups.get",   "method": "attachExtras" }
-  ],
-  "nbbpm": { "compatibility": "^3.x" }
+    { "hook": "static:app.load", "method": "init" },
+    { "hook": "filter:groups.update", "method": "onGroupUpdate" },
+    { "hook": "filter:groups.get", "method": "addExtrasToMany" },
+    { "hook": "filter:admin.groups.get", "method": "addExtrasToMany" },
+    { "hook": "filter:groups.getBySlug", "method": "addExtrasToOne" },
+    { "hook": "filter:groups.whitelistFields", "method": "extendWhitelist" }
+  ]
 }
